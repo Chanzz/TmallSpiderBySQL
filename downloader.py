@@ -1,5 +1,5 @@
 import requests
-import json
+import configparser
 import logging, os, time, random, pymysql
 
 shop_name = '左令内衣馆'
@@ -23,8 +23,11 @@ def get_photo(photo_url, name, num):
 
 
 if __name__ == '__main__':
-    conn = pymysql.connect(host='111.230.154.86', port=3306, user='root', password='chj981005',
-                           db='spider', charset='utf8')
+    config = configparser.ConfigParser()
+    config.read('./config.ini')
+    conn = pymysql.connect(host=config.get('DataBase', 'host'),
+                           user=config.get('DataBase', 'user'), password=config.get('DataBase', 'password'),
+                           db=config.get('DataBase', 'db'), charset=config.get('DataBase', 'charset'))
     cursor = conn.cursor()
     select_sql = "SELECT goods_name,photos_url,goods_url FROM " + shop_name + " WHERE downloaded=0"
     cursor.execute(select_sql)

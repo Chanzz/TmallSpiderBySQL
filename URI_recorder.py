@@ -6,6 +6,7 @@ import os
 import json, time, random
 import logging
 import pymysql
+import configparser
 
 logging.basicConfig(
     filename=os.path.join(os.getcwd(), 'SpiderLog.log'),
@@ -145,12 +146,12 @@ def get_photo_url(browser, conn):
             try:
                 next_page = browser.find_element_by_class_name('pg-next')
             except Exception:
-                print('退出循环')
+                print('没有下一页，退出循环')
                 break
             try:
                 end_page = browser.find_element_by_css_selector('.pg-next.pg-disabled')
                 if end_page:
-                    print('退出循环')
+                    print('最后一页，退出循环')
                     break
             except:
                 pass
@@ -174,8 +175,10 @@ def correct_data(conn):
 
 
 if __name__ == '__main__':
-    conn = pymysql.connect(host='111.230.154.86', port=3306, user='root', password='chj981005',
-                           db='spider', charset='utf8')
+    config=configparser.ConfigParser()
+    config.read('./config.ini')
+    conn = pymysql.connect(host=config.get('DataBase','host'),user=config.get('DataBase','user'), password=config.get('DataBase','password'),
+                           db=config.get('DataBase','db'), charset=config.get('DataBase','charset'))
     browser = get_all_page(conn)
     get_photo_url(browser, conn)
     print('===================================')
