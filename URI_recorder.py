@@ -43,9 +43,7 @@ def get_good_url(html, good_urls):
 
 
 def login():
-    browser = webdriver.Chrome()
     options = webdriver.ChromeOptions()
-    # options.add_experimental_option("prefs", {"profile.managed_default_content_settings.images": 2})  # 不加载图片,加快访问速度
     options.add_experimental_option('excludeSwitches', ['enable-automation'])  # 此步骤很重要，设置为开发者模式，防止被各大网站识别出来使用了Selenium
     browser = webdriver.Chrome(options=options)
     browser.get(login_url)
@@ -70,7 +68,7 @@ def get_all_page(conn):
     except Exception:
         pass
     # 写入数据库
-    create_table_sql = "CREATE TABLE IF NOT EXISTS " + shop_name + "  (goods_name varchar(50) CHARACTER SET utf8mb4 NULL,goods_url varchar(255) NULL,data_day date NULL,flag int(2) NULL,photos_url text NULL,comments_url text NULL,downloaded int(2) NULL,UNIQUE INDEX goods_url(goods_url) USING BTREE,INDEX data_day(data_day) USING BTREE)"
+    create_table_sql = "CREATE TABLE IF NOT EXISTS " + shop_name + "  (id int(11) NOT NULL PRIMARY KEY AUTO_INCREMENT,goods_name varchar(50) CHARACTER SET utf8mb4 NULL,goods_url varchar(255) NULL,data_day date NULL,flag int(2) NULL,photos_url text NULL,comments_url text NULL,downloaded int(2) NULL,UNIQUE INDEX goods_url(goods_url) USING BTREE,INDEX data_day(data_day) USING BTREE)"
     cursor.execute(create_table_sql)
     for k, v in goods_urls.items():
         sql = "SELECT * FROM " + shop_name + " where goods_url='" + v + "'"
@@ -99,6 +97,7 @@ def get_photo_url(browser, conn):
         k = i[0]
         v = i[1]
         print("进度：{}/{}  当前爬取商品名：{}   商品链接：{}".format(now, length, k, v))
+        logging.info("进度：{}/{}  当前爬取商品名：{}   商品链接：{}".format(now, length, k, v))
         now += 1
         try:
             browser.get('https:' + v)
@@ -125,6 +124,7 @@ def get_photo_url(browser, conn):
         update_photo_sql = "UPDATE " + shop_name + " SET photos_url='" + photo[
                                                                          :-1] + "' where goods_url='" + v + "'"
         cursor.execute(update_photo_sql)
+        conn.commit()
         element = browser.find_element_by_xpath('//*[@id="J_TabBar"]/li[2]/a[@shortcut-label="查看累计评论"]')
         browser.execute_script("arguments[0].click();", element)
         sleep(random.randint(9, 15))
@@ -132,6 +132,14 @@ def get_photo_url(browser, conn):
         urls = ""
         while True:
             comment_html = bs(browser.page_source, 'html5lib')
+            try:
+                slider_iframe = comment_html.find('iframe', attrs={'id': 'sufei-dialog-content'})
+                if slider_iframe:
+                    logging.error("滑块验证------")
+                    input("滑块验证============")
+                    comment_html = bs(browser.page_source, 'html5lib')
+            except:
+                pass
             comment_urls = comment_html.find_all('div', attrs={'class': 'tb-rev-item'})
             for comment_url in comment_urls:
                 comments = comment_url.find_all('img')
@@ -159,6 +167,8 @@ def get_photo_url(browser, conn):
             print("进入下一页评论")
         update_comment_sql = "UPDATE " + shop_name + " SET flag=1,comments_url='" + urls[
                                                                                     :-1] + "' where goods_url='" + v + "'"
+        conn.ping(reconnect=True)
+        cursor = conn.cursor()
         cursor.execute(update_comment_sql)
         conn.commit()
         sleep(random.randint(7, 20))
@@ -175,10 +185,11 @@ def correct_data(conn):
 
 
 if __name__ == '__main__':
-    config=configparser.ConfigParser()
+    config = configparser.ConfigParser()
     config.read('./config.ini')
-    conn = pymysql.connect(host=config.get('DataBase','host'),user=config.get('DataBase','user'), password=config.get('DataBase','password'),
-                           db=config.get('DataBase','db'), charset=config.get('DataBase','charset'))
+    conn = pymysql.connect(host=config.get('DataBase', 'host'), user=config.get('DataBase', 'user'),
+                           password=config.get('DataBase', 'password'),
+                           db=config.get('DataBase', 'db'), charset=config.get('DataBase', 'charset'))
     browser = get_all_page(conn)
     get_photo_url(browser, conn)
     print('===================================')
