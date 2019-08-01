@@ -23,8 +23,13 @@ shop_url = 'https://annamiyu.taobao.com/search.htm?spm=2013.1.w5001-17456993967.
 # shop_url = 'https://xinke.tmall.com/search.htm?spm=a220o.1000855.w5001-15325831808.4.255d419bboQnDr&scene=taobao_shop'
 
 
-# 获取当前页面所有商品链接
 def get_good_url(html, good_urls):
+    """
+    获取传入的商铺页所有的商品链接
+    :param html:网页源代码
+    :param good_urls：商品链接存储的空列表
+    :return shop_name：商铺名
+    """
     bs_html = bs(html, 'html5lib')
     shop_name = bs_html.find('span', attrs={'class': 'line-left J_TShopLeft'}).find('span',
                                                                                     attrs={'class': 'shop-name'}).find(
@@ -42,7 +47,13 @@ def get_good_url(html, good_urls):
     return shop_name
 
 
+
+
+
 def login():
+    """
+    登录函数
+    """
     options = webdriver.ChromeOptions()
     options.add_experimental_option('excludeSwitches', ['enable-automation'])  # 此步骤很重要，设置为开发者模式，防止被各大网站识别出来使用了Selenium
     browser = webdriver.Chrome(options=options)
@@ -53,6 +64,11 @@ def login():
 
 
 def get_all_page(conn):
+    """
+
+    :param conn:
+    :return:
+    """
     global shop_name
     cursor = conn.cursor()
     goods_urls = {}
@@ -101,11 +117,19 @@ def get_photo_url(browser, conn):
         now += 1
         try:
             browser.get('https:' + v)
+            js1 = '''Object.defineProperties(navigator,{ webdriver:{ get: () => false } }) '''
+            js2 = '''window.navigator.chrome = { runtime: {},  }; '''
+            js3 = '''Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] }); '''
+            js4 = '''Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5,6], }); '''
+            browser.execute_script(js1)
+            browser.execute_script(js2)
+            browser.execute_script(js3)
+            browser.execute_script(js4)
         except Exception as e:
             print('错误原因' + str(e))
             logging.error('错误原因' + str(e))
             logging.error('错误位置' + v)
-        sleep(random.randint(9, 20))
+        sleep(random.randint(9, 15))
         browser.execute_script("window.scrollTo(0,document.body.scrollHeight)")
         sleep(random.randint(9, 15))
         html = browser.page_source
@@ -133,10 +157,11 @@ def get_photo_url(browser, conn):
         while True:
             comment_html = bs(browser.page_source, 'html5lib')
             try:
-                slider_iframe = comment_html.find('iframe', attrs={'id': 'sufei-dialog-content'})
+                browser.switch_to.frame('sufei-dialog-content')
+                slider_iframe = browser.find_element_by_class_name('bannar')
                 if slider_iframe:
                     logging.error("滑块验证------")
-                    input("滑块验证============")
+                    input("=============滑块验证============")
                     comment_html = bs(browser.page_source, 'html5lib')
             except:
                 pass
@@ -150,7 +175,7 @@ def get_photo_url(browser, conn):
                     except:
                         pass
                     urls += ","
-            sleep(random.randint(10, 20))
+            sleep(random.randint(8, 15))
             try:
                 next_page = browser.find_element_by_class_name('pg-next')
             except Exception:
@@ -171,7 +196,7 @@ def get_photo_url(browser, conn):
         cursor = conn.cursor()
         cursor.execute(update_comment_sql)
         conn.commit()
-        sleep(random.randint(7, 20))
+        sleep(random.randint(7, 15))
         if now % 10 == 0:
             time.sleep(30)
     browser.close()
